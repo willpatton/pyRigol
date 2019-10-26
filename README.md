@@ -14,9 +14,9 @@ https://pyvisa.readthedocs.io/en/stable/index.html
 
 ## INSTALLATION
 Install Python3.  Then, install these Python packages:
-sudo pip install pyusb
-sudo pip install pyvisa
-sudo pip install pyvisa-py
+sudo pip install pyusb  
+sudo pip install pyvisa  
+sudo pip install pyvisa-py  
 
 
 ### NOTES
