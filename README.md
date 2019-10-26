@@ -1,5 +1,5 @@
-# pyVisa for Rigol
-Rigol Python RaspberryPi - automated, remote control scripts, USB.
+# pyVisa for Rigol over USB on RaspberryPi 
+Rigol Python RaspberryPi - automated, remote control scripts, USB, test equipment.
 This is example code for control benchtop instruments over USB running Python3 on a RaspberryPi (or similar SBC). 
 
 ## REFERENCE
@@ -13,10 +13,9 @@ pyvisa
 https://pyvisa.readthedocs.io/en/stable/index.html
 
 ## INSTALLATION
+Install Python3.  Then, install these Python packages:
 sudo pip install pyusb
-
 sudo pip install pyvisa
-
 sudo pip install pyvisa-py
 
 
