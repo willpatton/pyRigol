@@ -14,8 +14,11 @@ https://pyvisa.readthedocs.io/en/stable/index.html
 
 ## INSTALLATION
 sudo pip install pyusb
+
 sudo pip install pyvisa
+
 sudo pip install pyvisa-py
+
 
 ### NOTES
 NOTE:
