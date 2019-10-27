@@ -14,167 +14,207 @@ pyvisa
 DOCS
 https://pyvisa.readthedocs.io/en/stable/index.html
 
-INSTALLATION
-sudo pip install pyusb
-sudo pip install pyvisa
-sudo pip install pyvisa-py
-
-HOST SBC
-RaspberryPi (or similar)
-
-NOTE:
-This code contains equipment serial numbers.  Use your serial numbers instead.
-
 """
 #python3
 
 import time
 import visa
 
-debug = True        #True or False
-sm  = 0.5           #small delay sm sec
+debug = False         #True or False - shows extra info
+
+#INSTRUMENTS
+DP832    = False      #power supply
+DL3021   = True       #dc load
+DM3068   = True       #multimeter
+DG1022   = True       #signal generator
+DS1054Z  = True       #oscilloscope (4 channel)
+DS1102E  = False      #oscilloscope (2 channel)
+  
+#DELAYS
+sm  = 0.5           #small delay 500ms sec
 med = 1             #med delay 1 sec
 lrg = 2             #lrg delay 2 sec
 
 
-#SETUP
+"""
+SETUP
+"""
 #Create a resource manager using Py library
 resources = visa.ResourceManager('@py')
 if debug:
     print(resources.list_resources())
 
-#LOOP
-while 1:
 
+"""
+LOOP
+"""
+while 1:
+    
     #Rigol DL3021 DC Electronic Load 200W
-    if 1:
-        dcload = resources.open_resource('USB0::6833::3601::DL3A212100350::0::INSTR')
+    if DL3021:
+        print('\nDC LOAD')
+        dl = resources.open_resource('USB0::6833::3601::DL3A212100350::0::INSTR')
         time.sleep(sm)
-        print('\n' + dcload.query('*IDN?'),end='')
-        dcload.write('*RST')
+        if debug:
+            print('\n' + dl.query('*IDN?'),end='')
+        
+        #OFF
         time.sleep(sm)
-        dcload.write(':FUNC RES')
-        dcload.write(':RES 50')
+        dl.write('INP OFF')
+        time.sleep(med) #wait for bleed off
+        
+        #RESET
+        dl.write('*RST')
+        
+        #SETTINGS
+        time.sleep(sm)
+        dl.write(':FUNC RES')
+        dl.write(':RES 50')
+        
         #ON
-        dcload.write(':INP 1') 
-        time.sleep(2)  
+        dl.write(':INP ON')
+        time.sleep(lrg) #wait for stable reading
+        
         #MEAS
-        vdc = str(dcload.query(':MEAS:VOLT?').strip('H\n\r'))
-        idc = str(dcload.query(':MEAS:CURR?').strip('H\n\r'))
-        res = str(dcload.query(':MEAS:RES:DC?').strip('H\n\r'))
-        pwr = str(dcload.query(':MEAS:POW:DC?').strip('H\n\r'))
+        vdc = str(dl.query(':MEAS:VOLT?').strip('H\n\r'))
+        idc = str(dl.query(':MEAS:CURR?').strip('H\n\r'))
+        res = str(dl.query(':MEAS:RES:DC?').strip('H\n\r'))
+        pwr = str(dl.query(':MEAS:POW:DC?').strip('H\n\r'))
         #print
         print("Volts: " + vdc)
         print("Amps:  " + idc)
         print("Ohms:  " + res)
         print("Power: " + pwr)
         #OFF
-        #dcload.write('SOUR:INP:STAT 0')
-        dcload.close()
+        #dl.write('SOUR:INP:STAT 0')
+        dl.close()
         time.sleep(sm)
 
     #Rigol DG1022 Signal Generator
     #('USB0::6833::1416::DG1D124004366\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00::0::INSTR', 'ASRL/dev/ttyAMA0::INSTR')
-    if 1:
+    if DG1022:
+        print('\nSIGNAL GENERATOR')
         sg = resources.open_resource('USB0::6833::1416::DG1D124004366\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00::0::INSTR')
+        if debug:
+            time.sleep(sm)
+            idn = str(sg.query('*IDN?'))
+            print('\n' + idn.strip(' '),end='')
+        
         time.sleep(sm)
-        idn = str(sg.query('*IDN?'))
-        print('\n' + idn.strip(' '),end='')
-        #time.sleep(1)
-        #sg.write('*RST')        #causes crash ??
-        #time.sleep(sm)
+        sg.write('*RST')        #causes crash ??
+        time.sleep(sm)
+        
         #SETTING
         sg.write('FUNC SIN')
+        time.sleep(sm)
         sg.write('FREQ 1000')
+        time.sleep(sm)
+        sg.write('VOLT:UNIT VPP')
+        time.sleep(sm)
         sg.write('VOLT 1.414')
+        time.sleep(sm)
         sg.write('OUTP ON')
         time.sleep(sm)
-        #ECHO
+        
+        #READBACK
         print('Func: ' + sg.query('FUNC?'),end='')
         print('Freq: ' + sg.query('FREQ?'),end='')
         print('Ampl: ' + sg.query('VOLT?'),end='')
+        print('Unit: ' + sg.query('VOLT:UNIT?'),end='')
+        
+        #CLOSE
         sg.close()
         time.sleep(sm)
 
+
     ##Rigol DM3068 DMM
     ##('USB0::6833::3220::DM3O140800083::0::INSTR', 'ASRL/dev/ttyAMA0::INSTR')
-    if 1:
+    if DM3068:
+        print('\nMULTIMETER')
         dmm = resources.open_resource('USB0::6833::3220::DM3O140800083::0::INSTR')
         time.sleep(sm)
-        print('\n' + dmm.query('*IDN?'), end='')
+        if debug:
+            print('\n' + dmm.query('*IDN?'), end='')
         time.sleep(sm)
-        #
+        
+        #RESET
         #dmm.write('*RST') #causes crash
-        #time.sleep(1)
+        #time.sleep(med)
+        
         #MEAS
         vdc = str(dmm.query('MEAS:VOLT:DC?'))
         print('VDC: ' + vdc,end='')
-        time.sleep(1)
+        time.sleep(sm)
+        
+        #CLOSE
         dmm.close()
         time.sleep(sm)
 
 
     #Rigol DS1102E 2 Channel 100MHz Oscilloscope
-    if 1:
+    #Assumes CH1 is connected to scope's squarewave output using a 10x probe
+    if DS1102E:
+        print('\nOSCILLOSCOPE')
         oscilloscope = resources.open_resource('USB0::6833::1416::DS1EB124907269\x00::0::INSTR')
         time.sleep(sm)
-        print('\n' + oscilloscope.query('*IDN?'))
-        #print(oscilloscope.write('*OPC?'))
-        #print(oscilloscope.query(':ACQ:TYPE?'))
+        if debug:
+            print('\n' + ds.query('*IDN?'))
+            time.sleep(sm)
+
         
-        oscilloscope.write('*RST')
+        #RESET
+        ds.write('*RST')
         time.sleep(sm)
         
-        #ACQ
-        #oscilloscope.write(':ACQ:MODE ETIM')
-        #print(oscilloscope.query(':ACQ:SAMP? CHAN1'))
+        #CHAN
+        ds.write(':CHAN1:DISP ON')
+        ds.write(':CHAN2:DISP ON')
+        ds.write(':CHAN1:BWL OFF')
+        ds.write(':CHAN2:BWL OFF')
+        ds.write(':CHAN1:SCAL 0.1')
+        ds.write(':CHAN2:SCAL 1')
+        ds.write(':CHAN1:PROB 10')
+        ds.write(':CHAN2:PROB 1')
+        ds.write(':CHANNEL1:OFFSET 0')
+        ds.write(':CHANNEL2:OFFSET -2')
+        ds.write(':CHAN1:COUP DC')
+        ds.write(':CHAN2:COUP DC')
         
-        #Select vert
-        oscilloscope.write(':CHAN1:DISP ON')
-        oscilloscope.write(':CHAN2:DISP ON')
-        oscilloscope.write(':CHAN1:BWL OFF')
-        oscilloscope.write(':CHAN2:BWL OFF')
-        oscilloscope.write(':CHAN1:SCAL 0.1')
-        oscilloscope.write(':CHAN2:SCAL 1')
-        oscilloscope.write(':CHAN1:PROB 10')
-        oscilloscope.write(':CHAN2:PROB 1')
-        oscilloscope.write(':CHANNEL1:OFFSET 0')
-        oscilloscope.write(':CHANNEL2:OFFSET -2')
-        oscilloscope.write(':CHAN1:COUP DC')
-        oscilloscope.write(':CHAN2:COUP DC')
-        
-        oscilloscope.write(':TRIG:EDGE:SOUR CHAN1')
-        oscilloscope.write(':TRIG:EDGE:SLOP POS')
-        #oscilloscope.write(':TRIG:EDGE:LEV 1.65')
-        time.sleep(1)
-        oscilloscope.write(':Trig%50') #may need 1 sec settling time
-       
         #HORIZ
-        oscilloscope.write(':TIM:MODE MAIN')
-        oscilloscope.write(':TIM:FORM Y-T')
-        oscilloscope.write(':TIM:OFFS 0')   #0.01
-        oscilloscope.write(':TIM:SCAL 0.0005')
+        ds.write(':TIM:MODE MAIN')
+        ds.write(':TIM:FORM Y-T')
+        ds.write(':TIM:OFFS 0')   #0.01
+        ds.write(':TIM:SCAL 0.0005')
+        
+        #TRIG
+        ds.write(':TRIG:EDGE:SOUR CHAN1')
+        ds.write(':TRIG:EDGE:SLOP POS')
+        ds.write(':TRIG:EDGE:LEV 1.65')
+        #time.sleep(med)
+        #ds.write(':Trig%50') #may need 1 sec setup time
         
         #RUN
-        oscilloscope.write(':RUN')
-        #oscilloscope.write(':AUT0')
+        ds.write(':RUN')
+        #ds.write(':AUT0')
 
-        #SETTINGS
-        print("VERT:  " + oscilloscope.query(':CHAN1:SCAL?'))
-        print("HORIZ: " + oscilloscope.query(':TIM:SCAL?'))
-        print("TRIG:  " + oscilloscope.query(':TRIG:EDGE:LEV?'))
-        print("MODE:  " + oscilloscope.query(':ACQ:TYPE?'))
+        #READBACK
+        print("VERT:  " + ds.query(':CHAN1:SCAL?'))
+        print("HORIZ: " + ds.query(':TIM:SCAL?'))
+        print("TRIG:  " + ds.query(':TRIG:EDGE:LEV?'))
+        print("MODE:  " + ds.query(':ACQ:TYPE?'))
         
         #MEAS 
-        vpp1 = oscilloscope.query(':MEAS:VPP? CHAN1')
+        vpp1 = ds.query(':MEAS:VPP? CHAN1')
+        time.sleep(sm)
         print("CH1 Vpp: " + vpp1, end=' Freq: ')
+        freq1 = ds.query(':MEAS:FREQ? CHAN1')
         time.sleep(sm)
-        freq1 = oscilloscope.query(':MEAS:FREQ? CHAN1')
         print(freq1 + " Hz")
-        vpp2 = oscilloscope.query(':MEAS:VPP? CHAN2')
-        print("CH2 Vpp: " + vpp2, end=' Freq: ')
+        vpp2 = ds.query(':MEAS:VPP? CHAN2')
         time.sleep(sm)
-        freq2 = oscilloscope.query(':MEAS:FREQ? CHAN2')
+        print("CH2 Vpp: " + vpp2, end=' Freq: ')
+        freq2 = ds.query(':MEAS:FREQ? CHAN2')
+        time.sleep(sm)
         print(freq2 + " Hz")
         
         #Extract the reading from the resulting string...
@@ -183,10 +223,97 @@ while 1:
         #float(readinglines[0])
         #Send the reading to the terminal
         #print(reading)
-        #Close the connection
-        oscilloscope.close()
-        time.sleep(sm)
         
+        #CLOSE
+        ds.close()
+        time.sleep(sm)
+
+
+    #Rigol DS1054Z 4 Channel 50MHz Oscilloscope
+    #Assumes CH1 is connected to scope's squarewave output using a 10x probe
+    if DS1054Z:
+        print('\nOSCILLOSCOPE')
+        ds = resources.open_resource('USB0::6833::1230::DS1ZA203615280::0::INSTR')
+        time.sleep(sm)
+
+        if debug:
+            idn = str(ds.query('*IDN?')).strip('\r\n ')
+            print('\n' + idn, end='')
+            time.sleep(sm)
+        
+        #STOP
+        ds.write(':STOP')
+        ds.write('*CLE')
+        
+        #DOES NOT LIKE THIS - crashes on next query()
+        #ds.write('*RST')
+        #ds.write('*WAI')
+        #time.sleep(sm)
+                
+        #CHAN
+        time.sleep(sm)
+        ds.write(':CHAN1:DISP ON')
+        ds.write(':CHAN2:DISP ON')
+        ds.write(':CHAN1:COUP DC')
+        ds.write(':CHAN2:COUP DC')
+        ds.write(':CHAN1:BWL OFF')
+        ds.write(':CHAN2:BWL OFF')
+        ds.write(':CHAN1:PROB 10')
+        ds.write(':CHAN2:PROB 1')
+        ds.write(':CHAN1:INV OFF')
+        ds.write(':CHAN2:INV OFF')
+        ds.write(':CHAN1:VERN OFF')
+        ds.write(':CHAN2:VERN OFF')
+        ds.write(':CHAN1:UNIT VOLT')
+        ds.write(':CHAN2:UNIT VOLT')
+        ds.write(':CHAN1:SCALE 1')
+        ds.write(':CHAN2:SCALE 1')
+        ds.write(':CHAN1:OFFSET 0')
+        ds.write(':CHAN2:OFFSET -2')
+              
+        #HORIZ
+        ds.write(':TIM:MODE MAIN')     #MAIN is YT mode
+        ds.write(':TIM:DEL:ENAB OFF')
+        #ds.write(':TIM:DEL:OFFS 0')
+        #ds.write(':TIM:DEL:SCAL .001')
+        ds.write(':TIM:MAIN:OFFS 0')   #0.01
+        ds.write(':TIM:MAIN:SCAL 0.0005')
+
+        #TRIG
+        ds.write(':TRIG:EDGE:SOUR CHAN1')
+        ds.write(':TRIG:EDGE:SLOP POS')
+        ds.write(':TRIG:EDGE:LEV 1.65')
+        ds.write(':TRIG:SWE NORM')
+            
+        #READBACK
+        time.sleep(med)
+        vert = str(ds.query(':CHAN1:SCAL?')).strip('\n\rO ')
+        print("VERT:  " + vert)
+        tim = str(ds.query(':TIM:SCAL?')).strip('\n\r ')
+        print("HORIZ: " + tim)
+        trig = str(ds.query(':TRIG:EDGE:LEV?')).strip('\n\r ')
+        print("TRIG:  " + trig)
+        swp = str(ds.query(':TRIG:SWE?')).strip('\n\r0 ')
+        print("SWEEP: " + swp)
+        
+        #RUN
+        ds.write(':RUN')
+        #ds.write(':AUT0')
+           
+        #MEAS
+        time.sleep(sm)
+        vpp1 = str(ds.query(':MEAS:VPP? CHAN1')).strip('\n\r ')
+        print("CH1 Vpp: " + vpp1, end=' Freq: ')
+        freq1 = str(ds.query(':MEAS:FREQ? CHAN1')).strip('\n\r ')
+        print(freq1 + " Hz")
+        vpp2 = str(ds.query(':MEAS:VPP? CHAN2')).strip('\n\r ')
+        print("CH2 Vpp: " + vpp2, end=' Freq: ')
+        freq2 = str(ds.query(':MEAS:FREQ? CHAN2')).strip('\n\r ')
+        print(freq2 + " Hz")
+        
+        #CLOSE
+        ds.close()
+        time.sleep(sm)    
       
     #<CR>  
     #print();
