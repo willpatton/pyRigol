@@ -1,4 +1,4 @@
-# pyVisa for Rigol over USB on RaspberryPi 
+# Rigol over USB on RaspberryPi using Python  
 Rigol Python RaspberryPi - automated, remote control scripts, USB, test equipment.
 This is example code for control benchtop instruments over USB running Python3 on a RaspberryPi (or similar SBC). 
 
