@@ -15,10 +15,11 @@ DOCS
 https://pyvisa.readthedocs.io/en/stable/index.html
 
 """
-#python3
+#!/usr/bin/python3
 
+from datetime import date
 import time
-import visa
+import visa           #Python instrument library
 
 debug = False         #True or False - shows extra info
 
@@ -35,10 +36,28 @@ sm  = 0.5           #small delay 500ms sec
 med = 1             #med delay 1 sec
 lrg = 2             #lrg delay 2 sec
 
+#TEST PARAMS
+volts = 5.0
+frequency = 1000.0
+amplitude = 1.414
+
+#TIMERS/COUNTERS
+loop_count = 0
+
+
+#is float
+def is_numeric(s):
+        try:
+            float(s)
+            return True
+        except ValueError:
+            return False
 
 """
 SETUP
 """
+print('Begin: ' + time.ctime())
+
 #Create a resource manager using Py library
 resources = visa.ResourceManager('@py')
 if debug:
@@ -48,6 +67,10 @@ if debug:
 """
 LOOP
 """
+def loop():
+    #TODO
+    print('hello')
+    
 while 1:
     
     #Rigol DL3021 DC Electronic Load 200W
@@ -60,6 +83,7 @@ while 1:
         
         #OFF
         time.sleep(sm)
+        print('INPUT: OFF',end='')
         dl.write('INP OFF')
         time.sleep(med) #wait for bleed off
         
@@ -72,6 +96,7 @@ while 1:
         dl.write(':RES 50')
         
         #ON
+        print('...ON')
         dl.write(':INP ON')
         time.sleep(lrg) #wait for stable reading
         
@@ -90,9 +115,12 @@ while 1:
         dl.close()
         time.sleep(sm)
 
+
     #Rigol DG1022 Signal Generator
-    #('USB0::6833::1416::DG1D124004366\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00::0::INSTR', 'ASRL/dev/ttyAMA0::INSTR')
     if DG1022:
+        """
+        Does not have a reliable SCPI interface
+        """
         print('\nSIGNAL GENERATOR')
         sg = resources.open_resource('USB0::6833::1416::DG1D124004366\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00::0::INSTR')
         if debug:
@@ -100,35 +128,51 @@ while 1:
             idn = str(sg.query('*IDN?'))
             print('\n' + idn.strip(' '),end='')
         
+        time.sleep(med)
+        print('OUTPUT: OFF', end='')
+        sg.write('OUTP OFF')
         time.sleep(sm)
         sg.write('*RST')        #causes crash ??
         time.sleep(sm)
         
         #SETTING
         sg.write('FUNC SIN')
-        time.sleep(sm)
-        sg.write('FREQ 1000')
+        time.sleep(med)      #needs extra time here ??
+        sg.write('FREQ ' + str(frequency))
         time.sleep(sm)
         sg.write('VOLT:UNIT VPP')
         time.sleep(sm)
-        sg.write('VOLT 1.414')
+        sg.write('VOLT ' + str(amplitude))
         time.sleep(sm)
+        print('...ON')
         sg.write('OUTP ON')
-        time.sleep(sm)
-        
+           
         #READBACK
-        print('Func: ' + sg.query('FUNC?'),end='')
-        print('Freq: ' + sg.query('FREQ?'),end='')
-        print('Ampl: ' + sg.query('VOLT?'),end='')
-        print('Unit: ' + sg.query('VOLT:UNIT?'),end='')
-        
+        """
+        Requires a lengthy delay (>1.2 sec) between query() to prevent crashes
+        """
+        if False:
+            dly = 0.8
+            time.sleep(dly)
+            print('Func: ' + sg.query('FUNC?'),end='')
+            time.sleep(dly)
+            print('Freq: ',end='')
+            print(float(sg.query('FREQ?')))
+            time.sleep(dly)
+            print('Ampl: ',end='')
+            print(float(sg.query('VOLT?')))
+            #time.sleep(3)
+            #print('Unit: ' + sg.query('VOLT:UNIT?'),end='')
+        else:
+            print('No query mode.')
+            
         #CLOSE
+        time.sleep(sm) #ensure setup time for the close cmd
         sg.close()
         time.sleep(sm)
 
 
-    ##Rigol DM3068 DMM
-    ##('USB0::6833::3220::DM3O140800083::0::INSTR', 'ASRL/dev/ttyAMA0::INSTR')
+    #Rigol DM3068 DMM
     if DM3068:
         print('\nMULTIMETER')
         dmm = resources.open_resource('USB0::6833::3220::DM3O140800083::0::INSTR')
@@ -143,7 +187,8 @@ while 1:
         
         #MEAS
         vdc = str(dmm.query('MEAS:VOLT:DC?'))
-        print('VDC: ' + vdc,end='')
+        print('VDC: ',end='')
+        print(float(vdc))
         time.sleep(sm)
         
         #CLOSE
@@ -152,15 +197,19 @@ while 1:
 
 
     #Rigol DS1102E 2 Channel 100MHz Oscilloscope
-    #Assumes CH1 is connected to scope's squarewave output using a 10x probe
     if DS1102E:
+        """
+        Assumes CH1 is connected to scope's squarewave output using a 10x probe
+        """
         print('\nOSCILLOSCOPE')
         oscilloscope = resources.open_resource('USB0::6833::1416::DS1EB124907269\x00::0::INSTR')
         time.sleep(sm)
         if debug:
             print('\n' + ds.query('*IDN?'))
             time.sleep(sm)
-
+     
+        #STOP
+        ds.write(':STOP')
         
         #RESET
         ds.write('*RST')
@@ -217,21 +266,16 @@ while 1:
         time.sleep(sm)
         print(freq2 + " Hz")
         
-        #Extract the reading from the resulting string...
-        #readinglines = fullreading.splitlines()
-        # ...and convert it to a floating point value.
-        #float(readinglines[0])
-        #Send the reading to the terminal
-        #print(reading)
-        
         #CLOSE
         ds.close()
         time.sleep(sm)
 
 
     #Rigol DS1054Z 4 Channel 50MHz Oscilloscope
-    #Assumes CH1 is connected to scope's squarewave output using a 10x probe
     if DS1054Z:
+        """
+        Assumes CH1 is connected to scope's squarewave output using a 10x probe
+        """
         print('\nOSCILLOSCOPE')
         ds = resources.open_resource('USB0::6833::1230::DS1ZA203615280::0::INSTR')
         time.sleep(sm)
@@ -288,36 +332,68 @@ while 1:
         #READBACK
         time.sleep(med)
         vert = str(ds.query(':CHAN1:SCAL?')).strip('\n\rO ')
-        print("VERT:  " + vert)
-        tim = str(ds.query(':TIM:SCAL?')).strip('\n\r ')
-        print("HORIZ: " + tim)
+        print('VERT:  ', float(vert), end=' V/div\n')
+        horiz = str(ds.query(':TIM:SCAL?')).strip('\n\r ')
+        print('HORIZ: ', float(horiz), end=' s/div\n')
         trig = str(ds.query(':TRIG:EDGE:LEV?')).strip('\n\r ')
-        print("TRIG:  " + trig)
+        print('TRIG:  ', float(trig), end=' V\n')
         swp = str(ds.query(':TRIG:SWE?')).strip('\n\r0 ')
-        print("SWEEP: " + swp)
+        print('SWEEP:  ' + swp)
         
         #RUN
         ds.write(':RUN')
-        #ds.write(':AUT0')
            
         #MEAS
         time.sleep(sm)
         vpp1 = str(ds.query(':MEAS:VPP? CHAN1')).strip('\n\r ')
-        print("CH1 Vpp: " + vpp1, end=' Freq: ')
+        print('CH1:    ', end='')
+        if is_numeric(vpp1):
+            #signal
+            print(float(vpp1), end=' Vpp  ')
+        else:
+            #no signal
+            print('Vpp=*****', end=' ')
         freq1 = str(ds.query(':MEAS:FREQ? CHAN1')).strip('\n\r ')
-        print(freq1 + " Hz")
+        if is_numeric(freq1):
+            #signal
+            print('Freq: ', float(freq1), end=' Hz\n')
+        else:
+            #no signal
+            print()
         vpp2 = str(ds.query(':MEAS:VPP? CHAN2')).strip('\n\r ')
-        print("CH2 Vpp: " + vpp2, end=' Freq: ')
+        print('CH2:    ', end='')
+        if is_numeric(vpp2):
+            #signal
+            print(float(vpp2), end=' Vpp  ')
+        else:
+            #no signal
+            print('Vpp=*****', end=' ')
         freq2 = str(ds.query(':MEAS:FREQ? CHAN2')).strip('\n\r ')
-        print(freq2 + " Hz")
+        if is_numeric(freq2):
+            #signal
+            print('Freq: ',float(freq2), end=' Hz\n')
+        else:
+            #no signal
+            print()
         
+        #IMG
+        if 0:
+            #TODO
+            ds.write(':STOP')
+            time.sleep(sm)
+            #ds.query(':DISP:DATA?')
+            time.sleep(sm)
+            ds.write(':RUN')
+             
         #CLOSE
         ds.close()
         time.sleep(sm)    
       
-    #<CR>  
-    #print();
+
+
+    #end of loop stuff here    
+    loop_count = loop_count + 1
+    print('\nLOOP: ', loop_count)
     
     #end while
-
-
+ 
