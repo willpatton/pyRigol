@@ -21,13 +21,13 @@ from datetime import date
 import time
 import visa           #Python instrument library
 
-debug = False         #True or False - shows extra info
+debug = True         #True or False - shows extra info
 
 #INSTRUMENTS
-DP832    = False      #power supply
+DP832    = True      #power supply
 DL3021   = True       #dc load
 DM3068   = True       #multimeter
-DG1022   = True       #signal generator
+DG1022   = False       #signal generator
 DS1054Z  = True       #oscilloscope (4 channel)
 DS1102E  = False      #oscilloscope (2 channel)
   
@@ -73,6 +73,56 @@ def loop():
     
 while 1:
     
+     #Rigol DP832 Power Supply
+    if DP832:
+        print('\nPOWER SUPPLY')
+        dp = resources.open_resource('USB0::6833::3601::DP8C213403130::0::INSTR')
+        time.sleep(sm)
+        if debug:
+            print('\n' + dp.query('*IDN?'),end='')
+            time.sleep(sm)
+        
+        #MODEL
+        #time.sleep(sm)
+        #dp.write(':PROJ:SET MODEL,DP832A')
+        #time.sleep(4)
+            
+            
+        #RESET
+        dp.write('*RST')
+        
+        #CH, CURRENT, VOLT
+        dp.write(':INST CH1') #CH1 
+        time.sleep(sm)
+        dp.write(':CURR 0.23') #CURRENT 0.2A
+        time.sleep(sm)
+        dp.write(':CURR:PROT 0.3') #PROTECTION
+        time.sleep(sm)
+        dp.write(':CURR:PROT:STAT ON')
+        time.sleep(sm)
+        dp.write(':VOLT 5') #VOLTS
+        time.sleep(sm)
+        #dp.write(':APPL CH1,5,0.25') #CH1 5V, 0.25A   #ALL-IN-ONE
+        #time.sleep(sm)
+        dp.write(':OUTP CH1,ON')
+        time.sleep(sm)
+        
+        #READBACK
+        #print(dp.query(':APPL? CH1')) #ALL
+        #print('CH1:  ',end='')
+        volts = dp.query(':APPL? CH1,VOLT')
+        volts = str(volts.strip(' \n\r'))
+        #print('VOLT: ' + volts,end='')
+        curr = dp.query(':APPL? CH1,CURR')
+        curr = str(curr.strip('\n\r'))
+        outp = dp.query(':OUTP? CH1')
+        print('CH1: VOLTS: ' +  volts + ' CURR: ' + curr + ' OUTPUT: ' + outp)
+        
+        #CLOSE
+        dp.close()
+        time.sleep(sm)
+        
+    
     #Rigol DL3021 DC Electronic Load 200W
     if DL3021:
         print('\nDC LOAD')
@@ -112,6 +162,8 @@ while 1:
         print("Power: " + pwr)
         #OFF
         #dl.write('SOUR:INP:STAT 0')
+        
+        #CLOSE
         dl.close()
         time.sleep(sm)
 
