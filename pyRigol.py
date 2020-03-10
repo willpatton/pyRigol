@@ -26,7 +26,8 @@ debug = True         #True or False - shows extra info
 #INSTRUMENTS
 DP832    = True      #power supply
 DL3021   = True       #dc load
-DM3068   = True       #multimeter
+DM3058   = True       #multimeter
+DM3068   = False       #multimeter
 DG1022   = False       #signal generator
 DS1054Z  = True       #oscilloscope (4 channel)
 DS1102E  = False      #oscilloscope (2 channel)
@@ -224,10 +225,14 @@ while 1:
         time.sleep(sm)
 
 
-    #Rigol DM3068 DMM
-    if DM3068:
+    #Rigol DMM MULTIMETER
+    if DM3058 or DM3068:
         print('\nMULTIMETER')
-        dmm = resources.open_resource('USB0::6833::3220::DM3O140800083::0::INSTR')
+        if DM3058:
+            dmm = resources.open_resource('USB0::6833::3220::DM3O140800083::0::INSTR')
+        if DM3068:
+            #TODO
+            dmm = resources.open_resource('USB0::6833::3220::DM3O140800083::0::INSTR')
         time.sleep(sm)
         if debug:
             print('\n' + dmm.query('*IDN?'), end='')
@@ -448,4 +453,5 @@ while 1:
     print('\nLOOP: ', loop_count)
     
     #end while
- 
+
+
