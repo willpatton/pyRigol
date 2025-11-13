@@ -17,9 +17,8 @@ https://pyvisa.readthedocs.io/en/stable/index.html
 """
 #!/usr/bin/python3
 
-from datetime import date
 import time
-import visa           #Python instrument library
+import pyvisa as visa           #Python instrument library
 
 debug = True         #True or False - shows extra info
 
@@ -68,10 +67,6 @@ if debug:
 """
 LOOP
 """
-def loop():
-    #TODO
-    print('hello')
-    
 while 1:
     
      #Rigol DP832 Power Supply
@@ -111,13 +106,13 @@ while 1:
         #READBACK
         #print(dp.query(':APPL? CH1')) #ALL
         #print('CH1:  ',end='')
-        volts = dp.query(':APPL? CH1,VOLT')
-        volts = str(volts.strip(' \n\r'))
-        #print('VOLT: ' + volts,end='')
+        volts_readback = dp.query(':APPL? CH1,VOLT')
+        volts_readback = str(volts_readback.strip(' \n\r'))
+        #print('VOLT: ' + volts_readback,end='')
         curr = dp.query(':APPL? CH1,CURR')
         curr = str(curr.strip('\n\r'))
         outp = dp.query(':OUTP? CH1')
-        print('CH1: VOLTS: ' +  volts + ' CURR: ' + curr + ' OUTPUT: ' + outp)
+        print('CH1: VOLTS: ' +  volts_readback + ' CURR: ' + curr + ' OUTPUT: ' + outp)
         
         #CLOSE
         dp.close()
@@ -152,10 +147,10 @@ while 1:
         time.sleep(lrg) #wait for stable reading
         
         #MEAS
-        vdc = str(dl.query(':MEAS:VOLT?').strip('H\n\r'))
-        idc = str(dl.query(':MEAS:CURR?').strip('H\n\r'))
-        res = str(dl.query(':MEAS:RES:DC?').strip('H\n\r'))
-        pwr = str(dl.query(':MEAS:POW:DC?').strip('H\n\r'))
+        vdc = str(dl.query(':MEAS:VOLT?').strip('\n\r'))
+        idc = str(dl.query(':MEAS:CURR?').strip('\n\r'))
+        res = str(dl.query(':MEAS:RES:DC?').strip('\n\r'))
+        pwr = str(dl.query(':MEAS:POW:DC?').strip('\n\r'))
         #print
         print("Volts: " + vdc)
         print("Amps:  " + idc)
@@ -231,7 +226,7 @@ while 1:
         if DM3058:
             dmm = resources.open_resource('USB0::6833::3220::DM3O140800083::0::INSTR')
         if DM3068:
-            #TODO
+            #TODO: Replace with actual DM3068 device ID - currently using DM3058 ID
             dmm = resources.open_resource('USB0::6833::3220::DM3O140800083::0::INSTR')
         time.sleep(sm)
         if debug:
@@ -259,7 +254,7 @@ while 1:
         Assumes CH1 is connected to scope's squarewave output using a 10x probe
         """
         print('\nOSCILLOSCOPE')
-        oscilloscope = resources.open_resource('USB0::6833::1416::DS1EB124907269\x00::0::INSTR')
+        ds = resources.open_resource('USB0::6833::1416::DS1EB124907269\x00::0::INSTR')
         time.sleep(sm)
         if debug:
             print('\n' + ds.query('*IDN?'))
@@ -388,7 +383,7 @@ while 1:
             
         #READBACK
         time.sleep(med)
-        vert = str(ds.query(':CHAN1:SCAL?')).strip('\n\rO ')
+        vert = str(ds.query(':CHAN1:SCAL?')).strip('\n\r ')
         print('VERT:  ', float(vert), end=' V/div\n')
         horiz = str(ds.query(':TIM:SCAL?')).strip('\n\r ')
         print('HORIZ: ', float(horiz), end=' s/div\n')
